@@ -4,7 +4,7 @@ from tensorflow.keras.preprocessing import image
 import numpy as np
 from PIL import Image
 
-# Load your trained model
+# Load model
 model = load_model("fruit_classifier.h5")
 
 # Class labels
@@ -18,28 +18,47 @@ class_indices = {
     'soy beans': 29, 'spinach': 30, 'sweetcorn': 31, 'sweetpotato': 32,
     'tomato': 33, 'turnip': 34, 'watermelon': 35
 }
-# Reverse the dictionary
 class_labels = {v: k for k, v in class_indices.items()}
 
 # Streamlit UI
-st.title("🍎 Fruit Classifier CNN")
-st.write("Upload an image of a fruit or vegetable, and the model will predict its class!")
+st.set_page_config(page_title="🍎 Fruit & Veg Classifier", layout="centered")
+st.title("🍓 Fruit & Vegetable Classifier")
+st.write("Upload an image, and the model will predict what fruit or vegetable it is!")
+
+# Sidebar instructions
+st.sidebar.header("Instructions")
+st.sidebar.info(
+    """
+    1. Upload an image (jpg, jpeg, or png).  
+    2. The image will be resized automatically.  
+    3. The model predicts the class and shows top 3 probabilities.
+    """
+)
 
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    # Open and convert image to RGB (removes alpha channel if present)
-    img = Image.open(uploaded_file).convert('RGB')
-    
-    # Display the image
+    # Load image
+    img = Image.open(uploaded_file)
     st.image(img, caption='Uploaded Image', use_column_width=True)
     
-    # Preprocess the image
+    # Convert RGBA to RGB if needed
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+    
+    # Preprocess
     img = img.resize((224, 224))
     img_array = image.img_to_array(img)
-    img_array = np.expand_dims(img_array, axis=0) / 255.0  # Shape: (1,224,224,3)
+    img_array = np.expand_dims(img_array, axis=0) / 255.0
     
-    # Make prediction
-    prediction = model.predict(img_array)
-    class_idx = np.argmax(prediction, axis=1)[0]
-    st.success(f"Prediction: **{class_labels[class_idx]}**")
+    # Predict
+    prediction = model.predict(img_array)[0]
+    
+    # Get top 3 predictions
+    top_indices = prediction.argsort()[-3:][::-1]
+    top_probs = prediction[top_indices]
+    
+    # Display results
+    st.subheader("Predictions")
+    for i, idx in enumerate(top_indices):
+        st.write(f"{i+1}. **{class_labels[idx]}** — {top_probs[i]*100:.2f}%")
